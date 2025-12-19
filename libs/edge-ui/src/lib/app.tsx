@@ -1,364 +1,644 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Transition } from '@headlessui/react';
-import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/20/solid';
-import QRCode from 'qrcode';
-import { Fragment, useEffect, useState } from 'react';
-import { validate as uuidValidate } from 'uuid';
-import { V2Option } from './model';
+import { Fragment, useState } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import {
+  XMarkIcon,
+  ShoppingCartIcon,
+  HeartIcon,
+  MagnifyingGlassIcon,
+  UserIcon,
+  Bars3Icon,
+} from '@heroicons/react/24/outline';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  category: 'clothes' | 'glasses';
+  sizes?: string[];
+  colors?: string[];
+  description: string;
+  isNew?: boolean;
+  isSale?: boolean;
+}
+
+const products: Product[] = [
+  {
+    id: '1',
+    name: 'Elegant Black Dress',
+    price: 89.99,
+    originalPrice: 120.0,
+    image:
+      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'clothes',
+    sizes: ['XS', 'S', 'M', 'L', 'XL'],
+    colors: ['Black', 'Navy', 'Burgundy'],
+    description: 'A stunning black dress perfect for any elegant occasion.',
+    isSale: true,
+  },
+  {
+    id: '2',
+    name: 'Designer Sunglasses',
+    price: 199.99,
+    image:
+      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'glasses',
+    colors: ['Black', 'Tortoise', 'Gold'],
+    description: 'Premium designer sunglasses with UV protection.',
+    isNew: true,
+  },
+  {
+    id: '3',
+    name: 'Classic Denim Jacket',
+    price: 79.99,
+    image:
+      'https://images.unsplash.com/photo-1551028719-00167b16eac5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'clothes',
+    sizes: ['S', 'M', 'L', 'XL'],
+    colors: ['Blue', 'Black', 'Light Wash'],
+    description: 'Timeless denim jacket that never goes out of style.',
+  },
+  {
+    id: '4',
+    name: 'Vintage Round Glasses',
+    price: 149.99,
+    originalPrice: 180.0,
+    image:
+      'https://images.unsplash.com/photo-1572635196237-14b3f281503f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'glasses',
+    colors: ['Black', 'Tortoise', 'Clear'],
+    description: 'Stylish round glasses for a vintage-inspired look.',
+    isSale: true,
+  },
+  {
+    id: '5',
+    name: 'Silk Blouse',
+    price: 95.0,
+    image:
+      'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'clothes',
+    sizes: ['XS', 'S', 'M', 'L'],
+    colors: ['White', 'Pink', 'Blue'],
+    description: 'Luxurious silk blouse for sophisticated elegance.',
+    isNew: true,
+  },
+  {
+    id: '6',
+    name: 'Aviator Sunglasses',
+    price: 159.99,
+    image:
+      'https://images.unsplash.com/photo-1572635196237-14b3f281503f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+    category: 'glasses',
+    colors: ['Gold', 'Silver', 'Black'],
+    description: 'Classic aviator sunglasses with timeless appeal.',
+  },
+];
+
+const categories = [
+  { id: 'all', name: 'All Products' },
+  { id: 'clothes', name: 'Clothes' },
+  { id: 'glasses', name: 'Glasses' },
+];
+
 export function EdgeApp() {
-  const [text, setText] = useState('');
-  const [show, setShow] = useState(false);
-  const [v2Option, setV2Option] = useState<V2Option>({
-    ws0Rtt: false,
+  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>(
+    []
+  );
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
   });
-  function handleShare(text: string) {
-    setText(text);
-    setShow(true);
-  }
-  function handleV2Option(option: V2Option) {
-    setV2Option(option);
-  }
 
-  useEffect(() => {
-    if (show) {
-      console.log('useEffect---setShow');
-      const timeoutID = setTimeout(() => {
-        setShow(false);
-      }, 1500);
-      return () => {
-        clearTimeout(timeoutID);
-      };
-    }
-  }, [show]);
-  return (
-    <>
-      <div className="flex flex-col items-center h-screen">
-        <Warning></Warning>
-        <div className="flex flex-col h-full ite">
-          <QRcodeImg text={text}></QRcodeImg>
-          <V2Options handleV2Option={handleV2Option}></V2Options>
-          <ShareActions
-            handleShare={handleShare}
-            v2option={v2Option}
-          ></ShareActions>
-          <SetUpAlert></SetUpAlert>
-          <ShareAnything handleShare={handleShare}></ShareAnything>
-        </div>
-      </div>
-      <ShareNotifications show={show} setShow={setShow}></ShareNotifications>
-    </>
-  );
-}
-
-function V2Options({
-  handleV2Option,
-}: {
-  handleV2Option: (option: V2Option) => void;
-}) {
-  const [ws0Rtt, setWs0Rtt] = useState(false);
-  return (
-    <fieldset className="mt-2 border-dashed border-2 border-indigo-600">
-      <legend className="sr-only">Notifications</legend>
-      <div className="space-y-5">
-        <div className="relative flex items-start">
-          <div className="flex h-6 items-center">
-            <input
-              id="ws0rtt"
-              aria-describedby="comments-description"
-              name="ws0rtt"
-              type="checkbox"
-              checked={ws0Rtt}
-              onChange={(event) => {
-                setWs0Rtt(!ws0Rtt);
-                handleV2Option({
-                  ws0Rtt: !ws0Rtt,
-                });
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-            />
-          </div>
-          <div className="ml-3">
-            <label
-              htmlFor="ws0rtt"
-              className="text-sm font-medium leading-6 text-gray-900"
-            >
-              WS 0RTT
-            </label>
-            <p id="comments-description" className="text-sm text-gray-500">
-              Enable WS 0RTT
-            </p>
-          </div>
-        </div>
-      </div>
-    </fieldset>
-  );
-}
-
-function SetUpAlert() {
-  return (
-    <div className="p-4 rounded-md bg-yellow-50">
-      <div className="flex">
-        <div className="flex-shrink-0">
-          <ExclamationTriangleIcon
-            className="w-5 h-5 text-yellow-400"
-            aria-hidden="true"
-          />
-        </div>
-        <div className="ml-3">
-          <h3 className="text-sm font-medium text-yellow-800">请注意！</h3>
-          <div className="mt-2 text-sm text-yellow-700">
-            <p>
-              如果遇到连不上网的情况, 请查看/参考具体客户端的 &nbsp;
-              <a
-                target="_blank"
-                href="https://github.com/zizifn/edgetunnel#%E5%AE%A2%E6%88%B7%E7%AB%AF-v2rayn-%E9%85%8D%E7%BD%AE"
-                className="font-medium text-yellow-700 underline hover:text-yellow-600"
-              >
-                DNS 相关设置。
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-function ShareNotifications({
-  show,
-  setShow,
-}: {
-  show: boolean;
-  setShow: (show: boolean) => void;
-}) {
-  return (
-    <>
-      {/* Global notification live region, render this permanently at the end of the document */}
-      <div
-        aria-live="assertive"
-        className="fixed inset-0 flex items-end px-4 py-6 pointer-events-none sm:items-start sm:p-6"
-      >
-        <div className="flex flex-col items-center w-full space-y-4 sm:items-end">
-          {/* Notification panel, dynamically insert this into the live region when it needs to be displayed */}
-          <Transition
-            show={show}
-            as={Fragment}
-            enter="transform ease-out duration-300 transition"
-            enterFrom="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
-            enterTo="translate-y-0 opacity-100 sm:translate-x-0"
-            leave="transition ease-in duration-100"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="w-full max-w-sm overflow-hidden bg-white rounded-lg shadow-lg pointer-events-auto ring-1 ring-black ring-opacity-5">
-              <div className="p-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon
-                      className="w-6 h-6 text-red-700"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div className="ml-3 w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-medium text-gray-900">
-                      分享成功！
-                    </p>
-                    <p className="mt-1 text-sm text-red-500">
-                      请不要随意泄露分享链接！！
-                    </p>
-                  </div>
-                  <div className="flex flex-shrink-0 ml-4">
-                    <button
-                      type="button"
-                      className="inline-flex text-gray-400 bg-white rounded-md hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      onClick={() => {
-                        setShow(false);
-                      }}
-                    >
-                      <span className="sr-only">Close</span>
-                      <XMarkIcon className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Transition>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function QRcodeImg({ text }: { text: string }) {
-  const [codeImg, setcodeImg] = useState('');
-  const [copy, setCopy] = useState(false);
-  useEffect(() => {
-    (async () => {
-      if (text) {
-        const dataURL = await QRCode.toDataURL(text);
-        setcodeImg(dataURL);
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existingItem = prev.find((item) => item.product.id === product.id);
+      if (existingItem) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
       }
-    })();
-  }, [text]);
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
 
-  async function copyText() {
-    await navigator.clipboard.writeText(text);
-    setCopy(true);
-    setTimeout(() => {
-      setCopy(false);
-    }, 1500);
-  }
+  const removeFromCart = (productId: string) => {
+    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  };
+
+  const toggleFavorite = (productId: string) => {
+    setFavorites((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const cartTotal = cart.reduce(
+    (total, item) => total + item.product.price * item.quantity,
+    0
+  );
 
   return (
-    <div className="flex flex-col border border-blue-300 overflow-hidden w-[500px] h-[420px] justify-start items-center">
-      <img
-        src={codeImg}
-        width="350"
-        height="350"
-        alt="二维码"
-        className="border-spacing-1"
+    <div className="min-h-screen bg-gray-50">
+      <Header
+        cartItemCount={cart.reduce((count, item) => count + item.quantity, 0)}
+        onCartClick={() => setIsCartOpen(true)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
-      <div className="flex flex-grow w-full bg-gray-200">
-        <span className="flex-grow break-normal overflow-scroll w-4/5">
-          {text}
-        </span>
-        <div className="w-6 h-6 ml-auto">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            onClick={copyText}
-            className={`w-6 h-6 hover:cursor-pointer hover:border hover:border-indigo-500 ${
-              copy ? 'hidden' : 'block'
-            }`}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0015 2.25h-1.5a2.251 2.251 0 00-2.15 1.586m5.8 0c.065.21.1.433.1.664v.75h-6V4.5c0-.231.035-.454.1-.664M6.75 7.5H4.875c-.621 0-1.125.504-1.125 1.125v12c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V16.5a9 9 0 00-9-9z"
-            />
-          </svg>
-          <svg
-            aria-hidden="true"
-            height="16"
-            viewBox="0 0 16 16"
-            version="1.1"
-            className={`w-6 h-6 hover:border hover:border-indigo-500 ${
-              copy ? 'block bg-green-300' : 'hidden'
-            }`}
-          >
-            <path
-              fillRule="evenodd"
-              d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"
-            ></path>
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
-}
-function ShareAnything({
-  handleShare,
-}: {
-  handleShare: (text: string) => void;
-}) {
-  const [text, setText] = useState('');
-  return (
-    <div className="mt-4">
-      <label
-        htmlFor="comment"
-        className="block text-sm font-medium text-gray-700"
-      >
-        随意要分享的内容.
-      </label>
-      <div className="mt-1">
-        <textarea
-          rows={4}
-          name="comment"
-          id="comment"
-          className="block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+
+      <main>
+        <HeroSection />
+        <CategoryFilter
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
         />
-      </div>
-      <div className="flex justify-end mt-2">
-        <button
-          onClick={() => handleShare(text)}
-          type="submit"
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-transparent rounded-md shadow-sm hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-          分享
-        </button>
-      </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isFavorite={favorites.includes(product.id)}
+                onAddToCart={() => addToCart(product)}
+                onToggleFavorite={() => toggleFavorite(product.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <CartSidebar
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        onRemoveItem={removeFromCart}
+        total={cartTotal}
+      />
+
+      <Footer />
     </div>
   );
 }
 
-function ShareActions({
-  handleShare,
-  v2option,
+function Header({
+  cartItemCount,
+  onCartClick,
+  searchQuery,
+  onSearchChange,
 }: {
-  handleShare: (text: string) => void;
-  v2option: V2Option;
+  cartItemCount: number;
+  onCartClick: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }) {
-  function getPageURL() {
-    return window.location.href;
-  }
-  function getVlessURL() {
-    const url = new URL(window.location.href);
-    const uuid = url.pathname.split('/').find(uuidValidate);
-    let pathParam = '';
-    if (v2option.ws0Rtt) {
-      pathParam = `${pathParam}?ed=2048`;
-    }
-    if (pathParam) {
-      pathParam = `&path=${encodeURIComponent(pathParam)}`;
-    }
-    return `vless://${uuid}@${
-      url.hostname
-    }:443?encryption=none&security=tls&type=ws${pathParam || ''}#${
-      url.hostname
-    }`;
-  }
   return (
-    <span className="inline-flex self-center mt-4 rounded-md shadow-sm isolate">
-      <button
-        onClick={() => handleShare(getPageURL())}
-        type="button"
-        className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-md hover:border-indigo-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      >
-        分享本页
-      </button>
-      <button
-        onClick={() => handleShare(getVlessURL())}
-        type="button"
-        className="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      >
-        分享 V2ray
-      </button>
-    </span>
-  );
-}
+    <header className="bg-white shadow-sm sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold text-gray-900">ModeStyle</h1>
+          </div>
 
-function Warning() {
-  return (
-    <div className="flex justify-center w-full p-4 rounded-md bg-red-50">
-      <div className="flex">
-        <div className="flex-shrink-0">
-          <ExclamationTriangleIcon
-            className="w-5 h-5 text-red-700"
-            aria-hidden="true"
-          />
-        </div>
-        <div className="ml-3">
-          <h3 className="text-sm font-medium text-red-700">注意！！</h3>
-          <div className="mt-2 text-sm text-red-700">
-            <p>泄露本页面就等于泄露你的设置。</p>
+          {/* Search */}
+          <div className="flex-1 max-w-lg mx-8">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-4">
+            <button className="text-gray-400 hover:text-gray-500">
+              <UserIcon className="h-6 w-6" />
+            </button>
+            <button
+              onClick={onCartClick}
+              className="relative text-gray-400 hover:text-gray-500"
+            >
+              <ShoppingCartIcon className="h-6 w-6" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
+    </header>
+  );
+}
+
+function HeroSection() {
+  return (
+    <div className="relative bg-gradient-to-r from-purple-600 via-pink-600 to-red-600">
+      <div className="absolute inset-0 bg-black opacity-20"></div>
+      <div className="relative max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+          Fashion Forward
+        </h1>
+        <p className="mt-6 max-w-3xl text-xl text-purple-100">
+          Discover the latest trends in fashion clothing and premium eyewear.
+          Express your unique style with our curated collection.
+        </p>
+        <div className="mt-10">
+          <button className="bg-white text-purple-600 px-8 py-3 rounded-md font-medium hover:bg-gray-100 transition duration-200">
+            Shop Now
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function CategoryFilter({
+  categories,
+  selectedCategory,
+  onCategoryChange,
+}: {
+  categories: { id: string; name: string }[];
+  selectedCategory: string;
+  onCategoryChange: (category: string) => void;
+}) {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-center space-x-8">
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            onClick={() => onCategoryChange(category.id)}
+            className={`px-6 py-3 rounded-full font-medium transition duration-200 ${
+              selectedCategory === category.id
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-300'
+            }`}
+          >
+            {category.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({
+  product,
+  isFavorite,
+  onAddToCart,
+  onToggleFavorite,
+}: {
+  product: Product;
+  isFavorite: boolean;
+  onAddToCart: () => void;
+  onToggleFavorite: () => void;
+}) {
+  return (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-200">
+      <div className="relative">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-64 object-cover"
+        />
+        <button
+          onClick={onToggleFavorite}
+          className="absolute top-4 right-4 p-2 rounded-full bg-white shadow-md hover:shadow-lg transition duration-200"
+        >
+          <HeartIcon
+            className={`h-5 w-5 ${
+              isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'
+            }`}
+          />
+        </button>
+        {product.isNew && (
+          <span className="absolute top-4 left-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+            New
+          </span>
+        )}
+        {product.isSale && (
+          <span className="absolute top-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+            Sale
+          </span>
+        )}
+      </div>
+
+      <div className="p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {product.name}
+        </h3>
+        <p className="text-gray-600 text-sm mb-4">{product.description}</p>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl font-bold text-gray-900">
+              ${product.price}
+            </span>
+            {product.originalPrice && (
+              <span className="text-lg text-gray-500 line-through">
+                ${product.originalPrice}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onAddToCart}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition duration-200"
+          >
+            Add to Cart
+          </button>
+        </div>
+
+        {product.sizes && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 mb-2">
+              Sizes: {product.sizes.join(', ')}
+            </p>
+          </div>
+        )}
+
+        {product.colors && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600">
+              Colors: {product.colors.join(', ')}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CartSidebar({
+  isOpen,
+  onClose,
+  cart,
+  onRemoveItem,
+  total,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  cart: { product: Product; quantity: number }[];
+  onRemoveItem: (productId: string) => void;
+  total: number;
+}) {
+  return (
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-in-out duration-500"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in-out duration-500"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <Transition.Child
+                as={Fragment}
+                enter="transform transition ease-in-out duration-500 sm:duration-700"
+                enterFrom="translate-x-full"
+                enterTo="translate-x-0"
+                leave="transform transition ease-in-out duration-500 sm:duration-700"
+                leaveFrom="translate-x-0"
+                leaveTo="translate-x-full"
+              >
+                <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
+                  <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
+                    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+                      <div className="flex items-start justify-between">
+                        <Dialog.Title className="text-lg font-medium text-gray-900">
+                          Shopping cart
+                        </Dialog.Title>
+                        <div className="ml-3 flex h-7 items-center">
+                          <button
+                            type="button"
+                            className="-m-2 p-2 text-gray-400 hover:text-gray-500"
+                            onClick={onClose}
+                          >
+                            <span className="sr-only">Close panel</span>
+                            <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-8">
+                        <div className="flow-root">
+                          <ul
+                            role="list"
+                            className="-my-6 divide-y divide-gray-200"
+                          >
+                            {cart.map((item) => (
+                              <li key={item.product.id} className="flex py-6">
+                                <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                                  <img
+                                    src={item.product.image}
+                                    alt={item.product.name}
+                                    className="h-full w-full object-cover object-center"
+                                  />
+                                </div>
+
+                                <div className="ml-4 flex flex-1 flex-col">
+                                  <div>
+                                    <div className="flex justify-between text-base font-medium text-gray-900">
+                                      <h3>{item.product.name}</h3>
+                                      <p className="ml-4">
+                                        ${item.product.price}
+                                      </p>
+                                    </div>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                      {item.product.description}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-1 items-end justify-between text-sm">
+                                    <p className="text-gray-500">
+                                      Qty {item.quantity}
+                                    </p>
+
+                                    <div className="flex">
+                                      <button
+                                        type="button"
+                                        className="font-medium text-indigo-600 hover:text-indigo-500"
+                                        onClick={() =>
+                                          onRemoveItem(item.product.id)
+                                        }
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+                      <div className="flex justify-between text-base font-medium text-gray-900">
+                        <p>Subtotal</p>
+                        <p>${total.toFixed(2)}</p>
+                      </div>
+                      <p className="mt-0.5 text-sm text-gray-500">
+                        Shipping and taxes calculated at checkout.
+                      </p>
+                      <div className="mt-6">
+                        <button
+                          type="button"
+                          className="flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 w-full"
+                        >
+                          Checkout
+                        </button>
+                      </div>
+                      <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
+                        <p>
+                          or{' '}
+                          <button
+                            type="button"
+                            className="font-medium text-indigo-600 hover:text-indigo-500"
+                            onClick={onClose}
+                          >
+                            Continue Shopping
+                            <span aria-hidden="true"> →</span>
+                          </button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    </Transition.Root>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="bg-gray-900 text-white mt-16">
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">ModeStyle</h3>
+            <p className="text-gray-400">
+              Your destination for trendy fashion and premium eyewear.
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold mb-4">Shop</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li>
+                <a href="#" className="hover:text-white">
+                  Clothes
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Glasses
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  New Arrivals
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Sale
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold mb-4">Customer Service</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li>
+                <a href="#" className="hover:text-white">
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Shipping
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Returns
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Size Guide
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold mb-4">Follow Us</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li>
+                <a href="#" className="hover:text-white">
+                  Instagram
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Facebook
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Twitter
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white">
+                  Pinterest
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-8 pt-8 border-t border-gray-800">
+          <p className="text-center text-gray-400">
+            © 2024 ModeStyle. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
   );
 }
 
